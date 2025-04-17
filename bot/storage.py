@@ -1,6 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
 import json
+from main import scheduler
 
 
 def download_posts():
@@ -66,16 +67,28 @@ def delete_post(key: str):
 
 
 def schedule_posts(bot, chat_id):
-    scheduler = AsyncIOScheduler()
     posts = download_posts()
 
+    # обновляем данные по публикации постов
     for post_id in posts:
-        if posts[post_id]["scheduled_time"] is None: continue
-        post_time = datetime.strptime(posts[post_id]["scheduled_time"], "%Y-%m-%d %H:%M")
-        scheduler.add_job(bot.send_message, "date", run_date=post_time,
-                          args=[chat_id, posts[post_id]["text"]], kwargs={"parse_mode": "HTML"})
+        # Удаляем предыдущее задание, если оно есть
+        job_id = f"job_{post_id}"
+        existing_job = scheduler.get_job(job_id)
+        if existing_job:
+            scheduler.remove_job(job_id)
 
-    scheduler.start()
+        # приводим дату к типу datetime
+        post_time = datetime.strptime(posts[post_id]["scheduled_time"], "%Y-%m-%d %H:%M")
+
+        # Добавляем новое задание
+        scheduler.add_job(
+            bot.send_message,
+            "date",
+            run_date=post_time,
+            args=[chat_id, posts[post_id]["text"]],
+            kwargs={"parse_mode": "HTML"},
+            id=job_id  # <-- указываем ID
+        )
 
 
 def cleanup_old_posts():
