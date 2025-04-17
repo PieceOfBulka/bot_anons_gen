@@ -37,4 +37,5 @@ import requests
 
 
 with open("posts.json", "r", encoding="utf-8") as f:
-    print(json.load(f))
+    posts=json.load(f)
+    print(json.dumps(posts["111"],ensure_ascii=False, indent=2))

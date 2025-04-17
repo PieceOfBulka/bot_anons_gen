@@ -1,5 +1,5 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 
@@ -10,7 +10,7 @@ def download_posts():
 
 def upload_posts(posts: dict):
     with open("posts.json", 'w', encoding='utf-8') as f:
-        f.write(json.dumps(posts, ensure_ascii=False, indent=2))
+        json.dump(posts, f, ensure_ascii=False, indent=2)
 
 
 def update_post(post_id: str, text: str =None, post_type: str =None, source: str =None, scheduled_time: datetime =None):
@@ -76,3 +76,17 @@ def schedule_posts(bot, chat_id):
                           args=[chat_id, posts[post_id]["text"]], kwargs={"parse_mode": "HTML"})
 
     scheduler.start()
+
+
+def cleanup_old_posts():
+    posts = download_posts()
+
+    updated_posts = {
+        post_id: post
+        for post_id, post in posts.items()
+        if datetime.strptime(post["scheduled_time"], "%Y-%m-%d %H:%M") < datetime.now() and
+           datetime.now() - datetime.strptime(post["scheduled_time"], "%Y-%m-%d %H:%M") > timedelta(days=7)
+    }
+
+    if len(updated_posts) != len(posts):
+        upload_posts(updated_posts)

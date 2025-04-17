@@ -1,13 +1,15 @@
 import asyncio
+import json
+
 from aiogram import Router, F, Bot, types
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.filters import Command
 from aiogram.enums import ChatAction
 from bot.services import llama_reply, openrouter_reply
 from bot.parser import web_parser, telegram_parser
-from bot.storage import download_posts, update_post, add_post, schedule_posts
+from bot.storage import download_posts, upload_posts, update_post, add_post, schedule_posts
 from bot.config import Config
-from datetime import datetime
+from datetime import datetime, timedelta
 
 router = Router()
 
@@ -44,7 +46,7 @@ async def handle_message(message: Message, bot: Bot):
     user_id=message.from_user.id
     data = user_step.get(user_id)
 
-    if data == "awaiting_link":
+    if data["step"] == "awaiting_link":
         await generate_post(message, bot)
         await message.answer("Напишите ID для поста, уникально отображающий его информацию")
 
@@ -71,9 +73,6 @@ async def handle_message(message: Message, bot: Bot):
         user_step[user_id]["step"]="editing"
         await message.answer(f"✅ Пост **{user_step[user_id]['post_id']}** полностью сохранён")
 
-        # перезапуск автопостинга
-        schedule_posts(bot, Config.CHAT_ID)
-
         # логика для моментального editing
         try:
             momentum_editing = await handle_momentum_edit_choice(message, bot)
@@ -91,11 +90,30 @@ async def handle_message(message: Message, bot: Bot):
         try:
             await post_edit(post_id=user_step[user_id]["post_id"], new_text=message.text)
             await message.answer(f"Пост **{user_step[user_id]['post_id']}** успешно обновлен!")
+            user_step.pop(user_id)
         except Exception as e:
             await message.reply(f"Произошла ошибка при обновлении: {e} \nПопробуйте редактировать через меню")
 
+    elif data["step"] == "post_editing":
+        await post_edit(post_id=user_step[user_id]["post_id"], new_text=message.text)
+        await message.answer(f"✅ Пост **{user_step[user_id]['post_id']}** успешно обновлен")
+        user_step.pop(user_id)
+
+    elif data["step"] == "time_editing":
+        try:
+            date = datetime.strptime(message.text.strip(), "%Y-%m-%d %H:%M")
+            update_post(post_id=user_step[user_id]["post_id"], scheduled_time=date)
+            await message.answer(f"✅ Пост **{user_step[user_id]['post_id']}** успешно обновлен")
+            user_step.pop(user_id)
+        except ValueError:
+            await message.answer("❌ Неверный формат даты. Пример: `2025-04-15 14:30`")
+            return
+
     else:
         await message.reply("Что-то пошло не так. Попробуйте запустить /menu заново")
+        user_step.pop(user_id)
+
+    schedule_posts(bot=bot, chat_id=Config.CHAT_ID)
 
 
 # ───────────── Генерация поста ─────────────
@@ -184,20 +202,6 @@ async def handle_post_type_choice(bot: Bot, message: Message) -> str:
 
 
 # ───────────── Processing постов ─────────────
-async def posts_design(message: Message):
-    posts = download_posts()
-    if not posts:
-        await message.answer("У тебя пока нет активных постов.")
-        return
-
-    keyboard = InlineKeyboardMarkup()
-    for post_id, post in posts.items():
-        keyboard.add(InlineKeyboardButton(
-            text=post_id,
-            callback_data=f"post_{post_id}"
-        ))
-    await message.answer("Выбери пост для взаимодействия:", reply_markup=keyboard)
-
 
 async def post_edit(post_id: str, new_text: str):
     update_post(post_id=post_id, text=new_text)
@@ -242,13 +246,104 @@ async def on_choice(callback: CallbackQuery):
 @router.callback_query(F.data == "new")
 async def handle_new_post(callback: CallbackQuery, bot: Bot):
     await callback.message.answer("Пришли ссылку на источник")
-    user_step[callback.from_user.id] = "awaiting_link"  # Переход в шаг генерации поста
+    user_step[callback.from_user.id] = {"step": "awaiting_link"}  # Переход в шаг генерации поста
     await callback.answer()
 
 
 @router.callback_query(F.data == "view")
 async def handle_view_posts(callback: CallbackQuery, bot: Bot):
-    user_step[callback.from_user.id]["step"] = "posts_design"  # Переход в шаг генерации поста
+    posts = download_posts()
+    if not posts:
+        await bot.send_message(callback.from_user.id,"У тебя пока нет активных постов.")
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=post_id,
+                                  callback_data=f"select_post_{post_id}")]
+            for post_id in posts
+        ]
+    )
+
+    await bot.send_message(callback.from_user.id, "Выбери пост для взаимодействия:", reply_markup=keyboard)
+
+    user_step[callback.from_user.id] = "posts_design"  # Переход в шаг процессинга постов
+    await callback.answer()
+
+
+# Выбор поста
+@router.callback_query(F.data.startswith("select_post_"))
+async def post_action_choice(callback: CallbackQuery, bot: Bot):
+    post_id = callback.data.replace("select_post_", "")
+    posts = download_posts()
+
+    post = posts.get(post_id)
+    if not post:
+        await callback.message.answer("⚠️ Пост не найден.")
+        return
+
+
+    output=f"📌 Данные поста **{post_id}**\n" + json.dumps(post, ensure_ascii=False, indent=2)
+
+    await callback.message.answer(output)
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_{post_id}")],
+        [InlineKeyboardButton(text="✏ Изменить текст", callback_data=f"edit_text_{post_id}")],
+        [InlineKeyboardButton(text="🕓 Изменить дату", callback_data=f"edit_date_{post_id}")],
+        [InlineKeyboardButton(text="📤 Выложить через минуту", callback_data=f"publish_{post_id}")]
+    ])
+
+    await callback.message.answer("Выберите действие с постом", reply_markup=keyboard)
+    await callback.answer()
+
+# Удаление поста
+@router.callback_query(F.data.startswith("delete_"))
+async def delete_post(callback: CallbackQuery, bot: Bot):
+    post_id = callback.data.replace("delete_", "")
+    posts = download_posts()
+    if post_id in posts:
+        del posts[post_id]
+        upload_posts(posts)
+        await callback.message.answer(f"✅ Пост **{post_id}** удалён.")
+    else:
+        await callback.message.answer("⚠️ Пост не найден.")
+
+    schedule_posts(bot=bot,chat_id=Config.CHAT_ID)
+    await callback.answer()
+
+# Публикация через минуту (имитация)
+@router.callback_query(F.data.startswith("publish_"))
+async def publish_post(callback: CallbackQuery, bot: Bot):
+    post_id = callback.data.replace("publish_", "")
+    posts = download_posts()
+    post = posts.get(post_id)
+    if not post:
+        await callback.message.answer("⚠️ Пост не найден.")
+        return
+
+    update_post(post_id, scheduled_time=datetime.now() + timedelta(minutes=1))
+    await callback.message.answer("⏱ Пост будет опубликован через минуту...")
+
+    schedule_posts(bot=bot, chat_id=Config.CHAT_ID)
+    await callback.answer()
+
+# Редактирование текста поста
+@router.callback_query(F.data.startswith("edit_text_"))
+async def ask_new_text(callback: CallbackQuery, bot: Bot):
+    post_id = callback.data.replace("edit_text_", "")
+    await callback.message.answer(f"✏ Отправь новый текст для поста {post_id}")
+    user_step[callback.from_user.id]={"step": "post_editing", "post_id": post_id}
+
+    await callback.answer()
+
+
+# Редактирование даты публикации
+@router.callback_query(F.data.startswith("edit_date_"))
+async def ask_new_date(callback: CallbackQuery, state: dict):
+    post_id = callback.data.replace("edit_date_", "")
+    await callback.message.answer("📅 Введи новую дату и время в формате `YYYY-MM-DD HH:MM`")
+    user_step[callback.from_user.id] = {"step": "time_editing", "post_id": post_id}
     await callback.answer()
 
 
