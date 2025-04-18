@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from bot.config import Config
 from bot.handlers import router
-from bot.storage import cleanup_old_posts
+from bot.storage import cleanup_old_posts, scheduler
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=Config.BOT_TOKEN)
 dp = Dispatcher()
 
-scheduler = AsyncIOScheduler()
+
 
 
 async def auto_cleanup_task():

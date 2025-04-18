@@ -47,7 +47,7 @@ async def openrouter_reply(data: str, gen_mode: str) -> str:
     }
 
     data = {
-        "model": "meta-llama/llama-4-maverick:free",
+        "model": "deepseek/deepseek-chat-v3-0324:free",
         "messages": [
             {"role": "system", "content": ' '.join(instruction)},
             {"role": "user", "content": data}

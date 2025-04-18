@@ -1,8 +1,8 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
 import json
-from main import scheduler
 
+scheduler = AsyncIOScheduler()
 
 def download_posts():
     with open("posts.json", "r", encoding="utf-8") as f:
