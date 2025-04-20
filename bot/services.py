@@ -15,9 +15,12 @@ def clean_text(text: str) -> str:
     return clean_text
 
 
-async def llama_reply(user_input: str, post_type: str) -> str:
+async def llama_reply(user_input: str, gen_mode: str) -> str:
     """ Ответ модели"""
-    instruction=open("instructions/anons/final_instruction.txt", encoding='utf-8').readlines() # Читаем инструкции для модели
+    if gen_mode == "anons":
+        instruction = open("instructions/anons/final_instruction.txt", encoding='utf-8').readlines()
+    else:
+        instruction = open("instructions/news_inst.txt", encoding='utf-8').readlines()
 
     response = client_ll.chat.completions.create(
         model="meta-llama/Llama-Vision-Free",
