@@ -152,7 +152,7 @@ async def generate_post(message: Message, bot: Bot):
 
     # 5. Генерация ответа
     try:
-        formatted_text = await llama_reply(data, post_type)
+        formatted_text = await openrouter_reply(data, post_type)
     except Exception as e:
         await message.reply(f"Произошла ошибка при генерации: {e}")
         # Удаляем "Формирую пост..." даже при ошибке
