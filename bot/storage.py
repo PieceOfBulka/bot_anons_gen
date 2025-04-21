@@ -78,7 +78,12 @@ def schedule_posts(bot, chat_id):
             scheduler.remove_job(job_id)
 
         # приводим дату к типу datetime
-        post_time = datetime.strptime(posts[post_id]["scheduled_time"], "%Y-%m-%d %H:%M")
+        scheduled_time = posts[post_id].get("scheduled_time")
+        if not scheduled_time:
+            print(f"[!] Пост {post_id} не имеет scheduled_time, пропускаем.")
+            continue
+
+        post_time = datetime.strptime(scheduled_time, "%Y-%m-%d %H:%M")
 
         # Добавляем новое задание
         scheduler.add_job(
