@@ -53,6 +53,10 @@ async def handle_message(message: Message, bot: Bot):
     elif data["step"] == "awaiting_post_id":
         post_id = message.text.strip()
 
+        if len(post_id)>20:
+            await message.answer("ID слишком длинный, сформулируй короче")
+            return
+
         user_step[user_id]["step"] = "awaiting_time"
         user_step[user_id]["post_id"] = post_id
 
