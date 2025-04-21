@@ -264,7 +264,7 @@ async def handle_view_posts(callback: CallbackQuery, bot: Bot):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=post_id,
-                                  callback_data=f"select_post_{post_id}")]
+                                  callback_data=f"select_post_{post_id[:20]}")]
             for post_id in posts
         ]
     )
