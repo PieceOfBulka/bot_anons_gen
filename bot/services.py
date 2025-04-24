@@ -5,6 +5,7 @@ import unicodedata
 
 client_ll = Together(api_key=Config.LLM_TOKEN)
 
+
 def clean_text(text: str) -> str:
     """
     Удаляет или заменяет неподдерживаемые символы.
@@ -35,12 +36,12 @@ async def llama_reply(user_input: str, gen_mode: str) -> str:
 import requests
 import time
 
+
 async def openrouter_reply(data: str, gen_mode: str) -> str:
-    if gen_mode=="anons":
+    if gen_mode == "anons":
         instruction = open("instructions/anons/final_instruction.txt", encoding='utf-8').readlines()
     else:
         instruction = open("instructions/news_inst.txt", encoding='utf-8').readlines()
-
 
     url = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -57,9 +58,9 @@ async def openrouter_reply(data: str, gen_mode: str) -> str:
         ]
     }
 
-    start=time.time()
+    start = time.time()
     response = requests.post(url, headers=headers, json=data)
-    print(time.time()-start)
+    print(time.time() - start)
 
     if response.status_code == 200:
         try:

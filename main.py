@@ -14,8 +14,6 @@ bot = Bot(token=Config.BOT_TOKEN)
 dp = Dispatcher()
 
 
-
-
 async def auto_cleanup_task():
     while True:
         cleanup_old_posts()
@@ -30,6 +28,7 @@ async def main():
 
     asyncio.create_task(auto_cleanup_task())  # Запуск фоновой задачи
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

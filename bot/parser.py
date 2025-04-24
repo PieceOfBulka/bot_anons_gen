@@ -1,8 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from telethon.sync import TelegramClient
-from telethon.tl.types import PeerChannel
 from bot.config import Config
+
 
 def web_parser(url: str) -> str:
     headers = {
@@ -13,7 +13,7 @@ def web_parser(url: str) -> str:
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Получение всей текстовой информации
-    promt=soup.get_text()
+    promt = soup.get_text()
 
     return promt
 
@@ -30,7 +30,7 @@ async def telegram_parser(url: str) -> str:
 
     async with client:
         if channel.isdigit():
-            channel_peer_id=int(channel)
+            channel_peer_id = int(channel)
             entity = None
 
             async for dialog in client.iter_dialogs():
@@ -48,6 +48,6 @@ async def telegram_parser(url: str) -> str:
         return message.text
 
 
-if __name__=='__main__':
-    s=input()
+if __name__ == '__main__':
+    s = input()
     telegram_parser(s)

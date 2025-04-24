@@ -4,6 +4,7 @@ import json
 
 scheduler = AsyncIOScheduler()
 
+
 def download_posts():
     with open("posts.json", "r", encoding="utf-8") as f:
         return json.load(f)
@@ -14,29 +15,31 @@ def upload_posts(posts: dict):
         json.dump(posts, f, ensure_ascii=False, indent=2)
 
 
-def update_post(post_id: str, text: str =None, post_type: str =None, source: str =None, scheduled_time: datetime =None):
+def update_post(post_id: str, text: str = None, post_type: str = None, source: str = None,
+                scheduled_time: datetime = None):
     posts = download_posts()
     if post_id not in posts:
         return "Такого поста не существует"
 
-    if text is None: text=posts[post_id]["text"]
-    if post_type is None: post_type=posts[post_id]["post_type"]
-    if source is None: source=posts[post_id]["source"]
-    if scheduled_time is None: scheduled_time=posts[post_id]["scheduled_time"]
-    created_time=posts[post_id]["created_time"]
+    if text is None: text = posts[post_id]["text"]
+    if post_type is None: post_type = posts[post_id]["post_type"]
+    if source is None: source = posts[post_id]["source"]
+    if scheduled_time is None: scheduled_time = posts[post_id]["scheduled_time"]
+    created_time = posts[post_id]["created_time"]
 
     posts[post_id] = {
         "text": text,
         "post_type": post_type,
         "source": source,
-        "scheduled_time": scheduled_time if isinstance(scheduled_time, str) else scheduled_time.strftime("%Y-%m-%d %H:%M"),
+        "scheduled_time": scheduled_time if isinstance(scheduled_time, str) else scheduled_time.strftime(
+            "%Y-%m-%d %H:%M"),
         "created_time": created_time
     }
     upload_posts(posts)
 
 
 def get_post(key: str):
-    posts=download_posts()
+    posts = download_posts()
     if key not in posts:
         return "Такого поста не существует"
     return posts[key]
@@ -45,7 +48,7 @@ def get_post(key: str):
 def add_post(post_id: str, text: str, post_type: str, source: str):
     posts = download_posts()
     if posts == '':
-        posts={}
+        posts = {}
     if post_id in posts:
         return "Пост с таким ключом уже существует"
     posts[post_id] = {
@@ -59,7 +62,7 @@ def add_post(post_id: str, text: str, post_type: str, source: str):
 
 
 def delete_post(key: str):
-    posts=download_posts()
+    posts = download_posts()
     if key not in posts:
         return "Такого поста не существует"
     posts.pop(key)

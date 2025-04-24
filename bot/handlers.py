@@ -13,15 +13,17 @@ from datetime import datetime, timedelta
 
 router = Router()
 
-choice_waiters={}
+choice_waiters = {}
 user_step = {}
+
 
 # ───────────── Команды ─────────────
 
 @router.message(Command("start"))
 async def handle_start(message: Message):
     """ Обработчик команды /start"""
-    await message.answer("Этот бот предназначен для генерации, хранения и управления постами.\nДля работы напишите команду /menu")
+    await message.answer(
+        "Этот бот предназначен для генерации, хранения и управления постами.\nДля работы напишите команду /menu")
 
 
 @router.message(Command("menu"))
@@ -39,11 +41,11 @@ async def start_menu(message: Message, bot: Bot):
 
 @router.message()
 async def handle_message(message: Message, bot: Bot):
-    if user_step=={}:
+    if user_step == {}:
         await message.reply("Выберите действие через /menu")
         return
 
-    user_id=message.from_user.id
+    user_id = message.from_user.id
     data = user_step.get(user_id)
 
     if data["step"] == "awaiting_link":
@@ -53,7 +55,7 @@ async def handle_message(message: Message, bot: Bot):
     elif data["step"] == "awaiting_post_id":
         post_id = message.text.strip()
 
-        if len(post_id)>20:
+        if len(post_id) > 20:
             await message.answer("ID слишком длинный, сформулируй короче")
             return
 
@@ -74,7 +76,7 @@ async def handle_message(message: Message, bot: Bot):
             return
 
         update_post(post_id=user_step[user_id]["post_id"], scheduled_time=scheduled_time)
-        user_step[user_id]["step"]="editing"
+        user_step[user_id]["step"] = "editing"
         await message.answer(f"✅ Пост **{user_step[user_id]['post_id']}** полностью сохранён")
 
         # логика для моментального editing
@@ -83,8 +85,8 @@ async def handle_message(message: Message, bot: Bot):
         except asyncio.TimeoutError:
             await message.reply("⏳ Время на выбор истекло.")
             return
-        if momentum_editing=="yes":
-            user_step[user_id]["step"]="momentum_editing"
+        if momentum_editing == "yes":
+            user_step[user_id]["step"] = "momentum_editing"
             await message.answer("Пришлите исправленный вариант поста")
         else:
             user_step.pop(user_id)
@@ -130,7 +132,6 @@ async def generate_post(message: Message, bot: Bot):
         await message.answer("Пожалуйста, отправьте ссылку на источник.")
         return
 
-
     # 2. Выбор типа поста
     try:
         post_type = await handle_post_type_choice(bot, message)
@@ -139,11 +140,9 @@ async def generate_post(message: Message, bot: Bot):
         return
     await message.answer(f"Вы выбрали: {post_type}")
 
-
     # 3. Оповещение, что бот работает - отправляем временное сообщение
     await bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     temp = await message.answer("Формирую пост...")
-
 
     # 4. Получение результатов парсинга
     if "t.me" in user_input:
@@ -152,7 +151,6 @@ async def generate_post(message: Message, bot: Bot):
         data = web_parser(user_input)
 
     data += "Ссылка на источник: " + user_input
-
 
     # 5. Генерация ответа
     try:
@@ -177,7 +175,6 @@ async def generate_post(message: Message, bot: Bot):
                                        "text": formatted_text,
                                        "post_type": post_type,
                                        "source": user_input}
-
 
     # 8. Отправка результата генерации
     await message.reply(formatted_text, parse_mode="HTML")
@@ -258,7 +255,7 @@ async def handle_new_post(callback: CallbackQuery, bot: Bot):
 async def handle_view_posts(callback: CallbackQuery, bot: Bot):
     posts = download_posts()
     if not posts:
-        await bot.send_message(callback.from_user.id,"У тебя пока нет активных постов.")
+        await bot.send_message(callback.from_user.id, "У тебя пока нет активных постов.")
         return
 
     keyboard = InlineKeyboardMarkup(
@@ -286,8 +283,7 @@ async def post_action_choice(callback: CallbackQuery, bot: Bot):
         await callback.message.answer("⚠️ Пост не найден.")
         return
 
-
-    output=f"📌 Данные поста **{post_id}**\n" + json.dumps(post, ensure_ascii=False, indent=2)
+    output = f"📌 Данные поста **{post_id}**\n" + json.dumps(post, ensure_ascii=False, indent=2)
 
     await callback.message.answer(output)
 
@@ -301,6 +297,7 @@ async def post_action_choice(callback: CallbackQuery, bot: Bot):
     await callback.message.answer("Выберите действие с постом", reply_markup=keyboard)
     await callback.answer()
 
+
 # Удаление поста
 @router.callback_query(F.data.startswith("delete_"))
 async def delete_post(callback: CallbackQuery, bot: Bot):
@@ -313,8 +310,9 @@ async def delete_post(callback: CallbackQuery, bot: Bot):
     else:
         await callback.message.answer("⚠️ Пост не найден.")
 
-    schedule_posts(bot=bot,chat_id=Config.CHAT_ID)
+    schedule_posts(bot=bot, chat_id=Config.CHAT_ID)
     await callback.answer()
+
 
 # Публикация через минуту (имитация)
 @router.callback_query(F.data.startswith("publish_"))
@@ -332,12 +330,13 @@ async def publish_post(callback: CallbackQuery, bot: Bot):
     schedule_posts(bot=bot, chat_id=Config.CHAT_ID)
     await callback.answer()
 
+
 # Редактирование текста поста
 @router.callback_query(F.data.startswith("edit_text_"))
 async def ask_new_text(callback: CallbackQuery, bot: Bot):
     post_id = callback.data.replace("edit_text_", "")
     await callback.message.answer(f"✏ Отправь новый текст для поста {post_id}")
-    user_step[callback.from_user.id]={"step": "post_editing", "post_id": post_id}
+    user_step[callback.from_user.id] = {"step": "post_editing", "post_id": post_id}
 
     await callback.answer()
 
